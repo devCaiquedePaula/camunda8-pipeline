@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xmlns:zeebe="http://camunda.org/schema/zeebe/1.0"
+                  xmlns:modeler="http://camunda.org/schema/modeler/1.0"
+                  id="Definitions_aggregate_assets"
+                  targetNamespace="http://bpmn.io/schema/bpmn"
+                  modeler:executionPlatform="Camunda Cloud"
+                  modeler:executionPlatformVersion="8.10.0">
+  <bpmn:error id="Error_Rejected" name="Provider rejected the request" errorCode="PROVIDER_REJECTED" />
+  <bpmn:process id="aggregate-assets" name="Aggregate asset data" isExecutable="true">
+    <bpmn:startEvent id="Start" name="Aggregation requested">
+      <bpmn:outgoing>Flow_Start</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:parallelGateway id="Split" name="Query providers in parallel" />
+    <bpmn:parallelGateway id="Join" name="All branches settled" />
+    <bpmn:serviceTask id="Task_finnhub" name="Fetch from Finnhub">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="fetch-finnhub" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="Err_finnhub" name="Rejected" attachedToRef="Task_finnhub">
+      <bpmn:errorEventDefinition id="Err_finnhub_def" errorRef="Error_Rejected" />
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="Tmr_finnhub" name="Too slow" attachedToRef="Task_finnhub">
+      <bpmn:timerEventDefinition id="Tmr_finnhub_def">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">=providerTimeout</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:scriptTask id="ScriptFailed_finnhub" name="Finnhub failed">
+      <bpmn:extensionElements>
+        <zeebe:script expression="=&quot;FAILED&quot;" resultVariable="outcome_FINNHUB" />
+      </bpmn:extensionElements>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="ScriptTimeout_finnhub" name="Finnhub timed out">
+      <bpmn:extensionElements>
+        <zeebe:script expression="=&quot;TIMEOUT&quot;" resultVariable="outcome_FINNHUB" />
+      </bpmn:extensionElements>
+    </bpmn:scriptTask>
+    <bpmn:exclusiveGateway id="Merge_finnhub" />
+    <bpmn:serviceTask id="Task_alpha" name="Fetch from Alpha Vantage">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="fetch-alpha-vantage" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="Err_alpha" name="Rejected" attachedToRef="Task_alpha">
+      <bpmn:errorEventDefinition id="Err_alpha_def" errorRef="Error_Rejected" />
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="Tmr_alpha" name="Too slow" attachedToRef="Task_alpha">
+      <bpmn:timerEventDefinition id="Tmr_alpha_def">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">=providerTimeout</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:scriptTask id="ScriptFailed_alpha" name="Alpha Vantage failed">
+      <bpmn:extensionElements>
+        <zeebe:script expression="=&quot;FAILED&quot;" resultVariable="outcome_ALPHA_VANTAGE" />
+      </bpmn:extensionElements>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="ScriptTimeout_alpha" name="Alpha Vantage timed out">
+      <bpmn:extensionElements>
+        <zeebe:script expression="=&quot;TIMEOUT&quot;" resultVariable="outcome_ALPHA_VANTAGE" />
+      </bpmn:extensionElements>
+    </bpmn:scriptTask>
+    <bpmn:exclusiveGateway id="Merge_alpha" />
+    <bpmn:serviceTask id="Task_twelve" name="Fetch from Twelve Data">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="fetch-twelve-data" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:boundaryEvent id="Err_twelve" name="Rejected" attachedToRef="Task_twelve">
+      <bpmn:errorEventDefinition id="Err_twelve_def" errorRef="Error_Rejected" />
+    </bpmn:boundaryEvent>
+    <bpmn:boundaryEvent id="Tmr_twelve" name="Too slow" attachedToRef="Task_twelve">
+      <bpmn:timerEventDefinition id="Tmr_twelve_def">
+        <bpmn:timeDuration xsi:type="bpmn:tFormalExpression">=providerTimeout</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+    <bpmn:scriptTask id="ScriptFailed_twelve" name="Twelve Data failed">
+      <bpmn:extensionElements>
+        <zeebe:script expression="=&quot;FAILED&quot;" resultVariable="outcome_TWELVE_DATA" />
+      </bpmn:extensionElements>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="ScriptTimeout_twelve" name="Twelve Data timed out">
+      <bpmn:extensionElements>
+        <zeebe:script expression="=&quot;TIMEOUT&quot;" resultVariable="outcome_TWELVE_DATA" />
+      </bpmn:extensionElements>
+    </bpmn:scriptTask>
+    <bpmn:exclusiveGateway id="Merge_twelve" />
+    <bpmn:serviceTask id="Task_consolidate" name="Consolidate and store result">
+      <bpmn:extensionElements>
+        <zeebe:taskDefinition type="consolidate-and-store" retries="3" />
+      </bpmn:extensionElements>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_status" name="Any provider answered?" default="Flow_completed" />
+    <bpmn:endEvent id="End_completed" name="Result stored (COMPLETED or DEGRADED)" />
+    <bpmn:endEvent id="End_failed" name="All providers failed (status FAILED)" />
+    <bpmn:sequenceFlow id="Flow_Start" sourceRef="Start" targetRef="Split" />
+    <bpmn:sequenceFlow id="Flow_split_finnhub" sourceRef="Split" targetRef="Task_finnhub" />
+    <bpmn:sequenceFlow id="Flow_ok_finnhub" sourceRef="Task_finnhub" targetRef="Merge_finnhub" />
+    <bpmn:sequenceFlow id="Flow_err_finnhub" sourceRef="Err_finnhub" targetRef="ScriptFailed_finnhub" />
+    <bpmn:sequenceFlow id="Flow_tmr_finnhub" sourceRef="Tmr_finnhub" targetRef="ScriptTimeout_finnhub" />
+    <bpmn:sequenceFlow id="Flow_failed_finnhub" sourceRef="ScriptFailed_finnhub" targetRef="Merge_finnhub" />
+    <bpmn:sequenceFlow id="Flow_timeout_finnhub" sourceRef="ScriptTimeout_finnhub" targetRef="Merge_finnhub" />
+    <bpmn:sequenceFlow id="Flow_join_finnhub" sourceRef="Merge_finnhub" targetRef="Join" />
+    <bpmn:sequenceFlow id="Flow_split_alpha" sourceRef="Split" targetRef="Task_alpha" />
+    <bpmn:sequenceFlow id="Flow_ok_alpha" sourceRef="Task_alpha" targetRef="Merge_alpha" />
+    <bpmn:sequenceFlow id="Flow_err_alpha" sourceRef="Err_alpha" targetRef="ScriptFailed_alpha" />
+    <bpmn:sequenceFlow id="Flow_tmr_alpha" sourceRef="Tmr_alpha" targetRef="ScriptTimeout_alpha" />
+    <bpmn:sequenceFlow id="Flow_failed_alpha" sourceRef="ScriptFailed_alpha" targetRef="Merge_alpha" />
+    <bpmn:sequenceFlow id="Flow_timeout_alpha" sourceRef="ScriptTimeout_alpha" targetRef="Merge_alpha" />
+    <bpmn:sequenceFlow id="Flow_join_alpha" sourceRef="Merge_alpha" targetRef="Join" />
+    <bpmn:sequenceFlow id="Flow_split_twelve" sourceRef="Split" targetRef="Task_twelve" />
+    <bpmn:sequenceFlow id="Flow_ok_twelve" sourceRef="Task_twelve" targetRef="Merge_twelve" />
+    <bpmn:sequenceFlow id="Flow_err_twelve" sourceRef="Err_twelve" targetRef="ScriptFailed_twelve" />
+    <bpmn:sequenceFlow id="Flow_tmr_twelve" sourceRef="Tmr_twelve" targetRef="ScriptTimeout_twelve" />
+    <bpmn:sequenceFlow id="Flow_failed_twelve" sourceRef="ScriptFailed_twelve" targetRef="Merge_twelve" />
+    <bpmn:sequenceFlow id="Flow_timeout_twelve" sourceRef="ScriptTimeout_twelve" targetRef="Merge_twelve" />
+    <bpmn:sequenceFlow id="Flow_join_twelve" sourceRef="Merge_twelve" targetRef="Join" />
+    <bpmn:sequenceFlow id="Flow_join_out" sourceRef="Join" targetRef="Task_consolidate" />
+    <bpmn:sequenceFlow id="Flow_consolidated" sourceRef="Task_consolidate" targetRef="Gateway_status" />
+    <bpmn:sequenceFlow id="Flow_completed" sourceRef="Gateway_status" targetRef="End_completed" />
+    <bpmn:sequenceFlow id="Flow_all_failed" sourceRef="Gateway_status" targetRef="End_failed" name="FAILED">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">=status = &quot;FAILED&quot;</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_aggregate_assets">
+    <bpmndi:BPMNPlane id="Plane_aggregate_assets" bpmnElement="aggregate-assets">
+      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
+        <dc:Bounds x="162" y="362" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="135" y="402" width="90" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Split_di" bpmnElement="Split">
+        <dc:Bounds x="245" y="355" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="225" y="409" width="90" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_Start_di" bpmnElement="Flow_Start">
+        <di:waypoint x="198" y="380" />
+        <di:waypoint x="245" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Join_di" bpmnElement="Join">
+        <dc:Bounds x="755" y="355" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="735" y="409" width="90" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_finnhub_di" bpmnElement="Task_finnhub">
+        <dc:Bounds x="400" y="110" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Err_finnhub_di" bpmnElement="Err_finnhub">
+        <dc:Bounds x="412" y="172" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Tmr_finnhub_di" bpmnElement="Tmr_finnhub">
+        <dc:Bounds x="472" y="172" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ScriptFailed_finnhub_di" bpmnElement="ScriptFailed_finnhub">
+        <dc:Bounds x="370" y="240" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ScriptTimeout_finnhub_di" bpmnElement="ScriptTimeout_finnhub">
+        <dc:Bounds x="480" y="240" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Merge_finnhub_di" bpmnElement="Merge_finnhub">
+        <dc:Bounds x="655" y="125" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_split_finnhub_di" bpmnElement="Flow_split_finnhub">
+        <di:waypoint x="270" y="380" />
+        <di:waypoint x="270" y="150" />
+        <di:waypoint x="400" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ok_finnhub_di" bpmnElement="Flow_ok_finnhub">
+        <di:waypoint x="520" y="150" />
+        <di:waypoint x="655" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_err_finnhub_di" bpmnElement="Flow_err_finnhub">
+        <di:waypoint x="430" y="208" />
+        <di:waypoint x="430" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_tmr_finnhub_di" bpmnElement="Flow_tmr_finnhub">
+        <di:waypoint x="490" y="208" />
+        <di:waypoint x="490" y="240" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_failed_finnhub_di" bpmnElement="Flow_failed_finnhub">
+        <di:waypoint x="420" y="300" />
+        <di:waypoint x="420" y="318" />
+        <di:waypoint x="680" y="318" />
+        <di:waypoint x="680" y="175" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_timeout_finnhub_di" bpmnElement="Flow_timeout_finnhub">
+        <di:waypoint x="580" y="270" />
+        <di:waypoint x="680" y="270" />
+        <di:waypoint x="680" y="175" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_join_finnhub_di" bpmnElement="Flow_join_finnhub">
+        <di:waypoint x="705" y="150" />
+        <di:waypoint x="780" y="150" />
+        <di:waypoint x="780" y="355" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Task_alpha_di" bpmnElement="Task_alpha">
+        <dc:Bounds x="400" y="340" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Err_alpha_di" bpmnElement="Err_alpha">
+        <dc:Bounds x="412" y="402" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Tmr_alpha_di" bpmnElement="Tmr_alpha">
+        <dc:Bounds x="472" y="402" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ScriptFailed_alpha_di" bpmnElement="ScriptFailed_alpha">
+        <dc:Bounds x="370" y="470" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ScriptTimeout_alpha_di" bpmnElement="ScriptTimeout_alpha">
+        <dc:Bounds x="480" y="470" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Merge_alpha_di" bpmnElement="Merge_alpha">
+        <dc:Bounds x="655" y="355" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_split_alpha_di" bpmnElement="Flow_split_alpha">
+        <di:waypoint x="295" y="380" />
+        <di:waypoint x="400" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ok_alpha_di" bpmnElement="Flow_ok_alpha">
+        <di:waypoint x="520" y="380" />
+        <di:waypoint x="655" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_err_alpha_di" bpmnElement="Flow_err_alpha">
+        <di:waypoint x="430" y="438" />
+        <di:waypoint x="430" y="470" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_tmr_alpha_di" bpmnElement="Flow_tmr_alpha">
+        <di:waypoint x="490" y="438" />
+        <di:waypoint x="490" y="470" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_failed_alpha_di" bpmnElement="Flow_failed_alpha">
+        <di:waypoint x="420" y="530" />
+        <di:waypoint x="420" y="548" />
+        <di:waypoint x="680" y="548" />
+        <di:waypoint x="680" y="405" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_timeout_alpha_di" bpmnElement="Flow_timeout_alpha">
+        <di:waypoint x="580" y="500" />
+        <di:waypoint x="680" y="500" />
+        <di:waypoint x="680" y="405" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_join_alpha_di" bpmnElement="Flow_join_alpha">
+        <di:waypoint x="705" y="380" />
+        <di:waypoint x="755" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Task_twelve_di" bpmnElement="Task_twelve">
+        <dc:Bounds x="400" y="570" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Err_twelve_di" bpmnElement="Err_twelve">
+        <dc:Bounds x="412" y="632" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Tmr_twelve_di" bpmnElement="Tmr_twelve">
+        <dc:Bounds x="472" y="632" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ScriptFailed_twelve_di" bpmnElement="ScriptFailed_twelve">
+        <dc:Bounds x="370" y="700" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ScriptTimeout_twelve_di" bpmnElement="ScriptTimeout_twelve">
+        <dc:Bounds x="480" y="700" width="100" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Merge_twelve_di" bpmnElement="Merge_twelve">
+        <dc:Bounds x="655" y="585" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_split_twelve_di" bpmnElement="Flow_split_twelve">
+        <di:waypoint x="270" y="380" />
+        <di:waypoint x="270" y="610" />
+        <di:waypoint x="400" y="610" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ok_twelve_di" bpmnElement="Flow_ok_twelve">
+        <di:waypoint x="520" y="610" />
+        <di:waypoint x="655" y="610" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_err_twelve_di" bpmnElement="Flow_err_twelve">
+        <di:waypoint x="430" y="668" />
+        <di:waypoint x="430" y="700" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_tmr_twelve_di" bpmnElement="Flow_tmr_twelve">
+        <di:waypoint x="490" y="668" />
+        <di:waypoint x="490" y="700" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_failed_twelve_di" bpmnElement="Flow_failed_twelve">
+        <di:waypoint x="420" y="760" />
+        <di:waypoint x="420" y="778" />
+        <di:waypoint x="680" y="778" />
+        <di:waypoint x="680" y="635" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_timeout_twelve_di" bpmnElement="Flow_timeout_twelve">
+        <di:waypoint x="580" y="730" />
+        <di:waypoint x="680" y="730" />
+        <di:waypoint x="680" y="635" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_join_twelve_di" bpmnElement="Flow_join_twelve">
+        <di:waypoint x="705" y="610" />
+        <di:waypoint x="780" y="610" />
+        <di:waypoint x="780" y="405" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Task_consolidate_di" bpmnElement="Task_consolidate">
+        <dc:Bounds x="860" y="340" width="120" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_status_di" bpmnElement="Gateway_status">
+        <dc:Bounds x="1025" y="355" width="50" height="50" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1005" y="409" width="90" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_completed_di" bpmnElement="End_completed">
+        <dc:Bounds x="1142" y="362" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1115" y="402" width="90" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_failed_di" bpmnElement="End_failed">
+        <dc:Bounds x="1032" y="482" width="36" height="36" />
+        <bpmndi:BPMNLabel><dc:Bounds x="1005" y="522" width="90" height="27" /></bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_join_out_di" bpmnElement="Flow_join_out">
+        <di:waypoint x="805" y="380" />
+        <di:waypoint x="860" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_consolidated_di" bpmnElement="Flow_consolidated">
+        <di:waypoint x="980" y="380" />
+        <di:waypoint x="1025" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_completed_di" bpmnElement="Flow_completed">
+        <di:waypoint x="1075" y="380" />
+        <di:waypoint x="1142" y="380" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_all_failed_di" bpmnElement="Flow_all_failed">
+        <di:waypoint x="1050" y="405" />
+        <di:waypoint x="1050" y="482" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

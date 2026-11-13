@@ -49,7 +49,7 @@ BPMN decides when each step runs. Code decides what each step does. Replacing a 
 4. Non-retryable business failures (invalid API key, unknown symbol): the worker throws a BPMN error, caught by a boundary error event that marks the branch as failed.
 5. A boundary timer event on each branch cuts off a slow provider and continues without it.
 6. The parallel join leads to a single `consolidate-and-store` service task that merges and normalizes the provider responses and stores the consolidated result in Redis with a TTL, so the full result never passes through process variables.
-7. An exclusive gateway ends the process normally, or with an error end event when the status is `FAILED`.
+7. An exclusive gateway ends the process: a normal end event for `COMPLETED` or `DEGRADED`, and a separate, clearly named end event ("All providers failed") for `FAILED`. It is a plain end event, not an error end event, because an unhandled error end event raises an incident in Zeebe and a handled business outcome should not look like an operational incident. The `FAILED` status is stored in Redis.
 
 Result policy:
 - At least one provider answered with all branches ok: `COMPLETED`.
