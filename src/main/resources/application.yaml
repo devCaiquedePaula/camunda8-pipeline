@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: asset-pipeline
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+camunda:
+  client:
+    mode: self-managed
+    grpc-address: ${CAMUNDA_GRPC_ADDRESS:http://localhost:26500}
+    rest-address: ${CAMUNDA_REST_ADDRESS:http://localhost:8080}
+
+assetpipeline:
+  result-ttl: PT1H
+  provider-timeout: PT10S
+  providers:
+    finnhub:
+      base-url: https://finnhub.io/api/v1
+      api-key: ${FINNHUB_API_KEY:}
+    alpha-vantage:
+      base-url: https://www.alphavantage.co
+      api-key: ${ALPHA_VANTAGE_API_KEY:}
+    twelve-data:
+      base-url: https://api.twelvedata.com
+      api-key: ${TWELVE_DATA_API_KEY:}
